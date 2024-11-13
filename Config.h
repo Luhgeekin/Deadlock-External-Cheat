@@ -14,11 +14,13 @@ struct Config {
 	};
 
 	struct AimSettings : public CheatSettings {
+		int key = VK_XBUTTON1;
 		float smoothing = 0.25;
 		float fov = 100;
 
 		bool fovCircle = true;
 		bool lineToTarget = true;
+		bool rememberTarget = true;
 
 		ImVec4 fovColor = ImVec4(1.0, 1.0, 1.0, 1.0);
 
@@ -50,7 +52,7 @@ struct Config {
 
 		struct EntityBaseRendererSettings {
 			bool isOn;
-
+			
 			bool doesDrawBoxes;
 			bool doesDrawHealthBar;
 			bool doesDrawLines;

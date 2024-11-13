@@ -40,6 +40,17 @@ public:
 		_relevantTypes = types;
 	}
 
+	std::shared_ptr<Entity> GetEntityByAddr(uintptr_t addr) {
+		for (const auto& [type, vec] : _list) {
+			for (const auto& ent : vec) {
+				if (*ent == addr) {
+					return ent;
+				}
+			}
+		}
+		return nullptr;
+	}
+
 private:
 
 	void UpdateSelfAddress() override {
@@ -117,8 +128,6 @@ private:
 
 		return true;
 	}
-
-
 
 	std::shared_ptr<Entity> CreateEntity(EntityType type, uintptr_t addr) {
 

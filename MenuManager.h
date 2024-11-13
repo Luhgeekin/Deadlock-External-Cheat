@@ -3,6 +3,8 @@
 #include"Config.h"
 #include"functional"
 
+#define Stringify(x) {x, std::string(#x)}
+
 class Menu {
 public:
 	Menu(Config& config, HWND hwnd) : _config(config), _hwnd(hwnd) {};
@@ -58,13 +60,109 @@ public:
 
 
 private:
+    class KeyBind {
+    public:
+        KeyBind(int& key) : 
+            _key(key),
+            _waitingForKey(false)
+        {}
+        
+        void Button(const std::string& label) {
+            ImGui::Text("%s:", label.c_str());
+            ImGui::SameLine();
+            if (ImGui::Button(_waitingForKey ? "press any key" : GetKeyName(_key).c_str())) {
+                _waitingForKey = true;
+            }
+
+            if (_waitingForKey) {
+                for (int i = 1; i < 255; i++) {
+                    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+                        _waitingForKey = false;
+                        break;
+                    }
+                    if (GetAsyncKeyState(i) & 0x8000) {
+                        _key = i;
+                        _waitingForKey = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+    private:
+        std::string GetKeyName(int key) {
+            if (key >= '0' && key <= '9') {
+                return std::string(std::to_string(key - 0x30));
+            }
+            if (key >= 'A' && key <= 'Z') {
+                return std::string(1, static_cast<char>(key));
+            }
+            if (key >= VK_NUMPAD1 && key <= VK_NUMPAD9) {
+                return std::string("VK_NUMPAD" + std::to_string(key - 0x60));
+            }
+            if (key >= VK_F1 && key <= VK_F24) {
+                return std::string("VK_F" + std::to_string(key - 0x70));
+            }
+
+            static std::unordered_map<int, std::string> KeyToStringMap = {
+                Stringify(VK_LBUTTON),
+                Stringify(VK_RBUTTON),
+                Stringify(VK_CANCEL),
+                Stringify(VK_MBUTTON),
+                Stringify(VK_XBUTTON1),
+                Stringify(VK_XBUTTON2),
+
+                Stringify(VK_BACK),
+                Stringify(VK_TAB),
+                Stringify(VK_RETURN),
+                Stringify(VK_SHIFT),
+                Stringify(VK_CONTROL),
+                Stringify(VK_MENU),
+                Stringify(VK_PAUSE),
+                Stringify(VK_CAPITAL),
+                Stringify(VK_ESCAPE),
+                Stringify(VK_SPACE),
+
+                Stringify(VK_PRIOR),  
+                Stringify(VK_NEXT),   
+                Stringify(VK_END),
+                Stringify(VK_HOME),
+                Stringify(VK_LEFT),
+                Stringify(VK_UP),
+                Stringify(VK_RIGHT),
+                Stringify(VK_DOWN),
+
+                Stringify(VK_NUMLOCK),
+                Stringify(VK_SCROLL),
+                Stringify(VK_INSERT),
+                Stringify(VK_DELETE),
+                Stringify(VK_SNAPSHOT),
+            };
+
+            if (KeyToStringMap.find(key) != KeyToStringMap.end()) {
+                return KeyToStringMap[key];
+            }
+
+            return "UNKNONWN";
+        }
+
+    private:
+        bool _waitingForKey;
+        int& _key;
+    };
+
+
     //                                                  AimBot
     //################################################################################################################
     void RenderAimMenu(Config::AimSettings& settings) {
+        static KeyBind aimKey(settings.key);
+
         ImGui::BeginTabBar("tabs");
         {
             if (ImGui::BeginTabItem("global")) {
                 ImGui::Checkbox("Enable", &settings.isOn);
+                aimKey.Button("Aim key");
+                ImGui::Checkbox("Remember target", &settings.rememberTarget);
                 ImGui::SliderFloat("max distance", &settings.maxDistance, 500.f, 10000.0f);
                 ImGui::SliderFloat("fov", &settings.fov, 50.f, 500.f);
                 ImGui::SliderFloat("smoothing", &settings.smoothing, 0.1f, 1.0f);

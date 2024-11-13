@@ -165,7 +165,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 			}
 		}
 
-
 		if (!running) {
 			break;
 		}
@@ -173,11 +172,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 		ImGui_ImplDX11_NewFrame();
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
-
-		if (GetAsyncKeyState(VK_HOME) & 0x8000) {
-			inMenu = !inMenu;
-			Sleep(100);
-		}
 
 		if (inMenu != prevMenuState) {
 			if (inMenu) {
@@ -211,10 +205,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
 		deviceContext->OMSetRenderTargets(1U, &renderTargetView, nullptr);
 		deviceContext->ClearRenderTargetView(renderTargetView, color);
 
+		if (GetAsyncKeyState(VK_HOME) & 0x8000) {
+			inMenu = !inMenu;
+			Sleep(100);
+		}
+
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 		swapChain->Present(1U, 0U);
 		Sleep(10);
-
 	}
 
 	ImGui_ImplDX11_Shutdown();

@@ -162,7 +162,6 @@ protected:
         }
     }
 
-
 protected:
     ImVec2 originScreenPos = { 0, 0 };
     ImVec2 headScreenPos = { 0, 0 };
@@ -256,15 +255,15 @@ public:
     ESP(const Config::ESPSettings& settings) :
         Cheat(settings)
     {
-        entityDrawers[EntityType::PlayerEnt] = std::make_shared<ESPRenderer<EntityType::PlayerEnt>>(settings.players);
-        entityDrawers[EntityType::OrbEnt] = std::make_shared<ESPRenderer<EntityType::OrbEnt>>(settings.orbs);
-        entityDrawers[EntityType::TrooperEnt] = std::make_shared<ESPRenderer<EntityType::TrooperEnt>>(settings.troopers);
+        ESPRenderers[EntityType::PlayerEnt] = std::make_shared<ESPRenderer<EntityType::PlayerEnt>>(settings.players);
+        ESPRenderers[EntityType::OrbEnt] = std::make_shared<ESPRenderer<EntityType::OrbEnt>>(settings.orbs);
+        ESPRenderers[EntityType::TrooperEnt] = std::make_shared<ESPRenderer<EntityType::TrooperEnt>>(settings.troopers);
     }
 
     std::vector<EntityType> GetRelevantEntities() override {
         std::vector<EntityType> relevantEntities;
 
-        for (const auto& drawer : entityDrawers) {
+        for (const auto& drawer : ESPRenderers) {
             if (drawer.second->isOn) {
                 relevantEntities.push_back(drawer.first);
             }
@@ -275,19 +274,19 @@ public:
 
 private:
     void _Tick() override {
-        for (const auto& [type, drawer] : entityDrawers) {
+        for (const auto& [type, renderer] : ESPRenderers) {
             for (const auto& ent : EntitySystem::get()[type]) {
                 if (EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(ent->GetWorldPosition(BoneType::Origin)) >= _settings.maxDistance) {
                     continue;
                 }
 
-                drawer->Render(ent);
+                renderer->Render(ent);
             }
         }
     }
 
 private:
 
-    std::unordered_map<EntityType, std::shared_ptr<ESPRendererBase>> entityDrawers;
+    std::unordered_map<EntityType, std::shared_ptr<ESPRendererBase>> ESPRenderers;
 
 };

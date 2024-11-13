@@ -10,6 +10,14 @@ public:
 		return other._addr == _addr;
 	}
 
+	bool operator == (uintptr_t addr) {
+		return _addr == addr;
+	}
+
+	uintptr_t GetAddr() {
+		return _addr;
+	}
+
 	virtual bool isValid() {
 		return _addr != 0;
 	}

@@ -42,29 +42,49 @@ private:
 			);
 		}
 
-		ImVec2 enemyPos = GetClosestEntityPos();
-
-		if (enemyPos.x == 0 && enemyPos.y == 0) {
+		ImVec2 aimPosition;
+		if (!GetAimPosition(aimPosition)) {
 			return;
 		}
+
 		if (_settings.lineToTarget) {
 			ImGui::GetBackgroundDrawList()->AddLine(
 				screenCenter,
-				enemyPos,
+				aimPosition,
 				ImGui::ColorConvertFloat4ToU32(_settings.fovColor),
 				1
 			);
 		}
 
-		if (!(GetKeyState(VK_LBUTTON) & 0x8000)) {
+		if (!(GetKeyState(_settings.key) & 0x8000)) {
+			_currentTarget = std::nullopt;
 			return;
 		}
 
-		ImVec2 deltaMove = CalculateMouseMove(enemyPos);
+		ImVec2 deltaMove = CalculateMouseMove(aimPosition);
 		MoveMouse(deltaMove.x, deltaMove.y);
 	}
 
-	ImVec2 GetClosestEntityPos() {
+	bool GetAimPosition(ImVec2& buf) {
+		if (_currentTarget != std::nullopt) {
+			std::shared_ptr<Entity> target = EntitySystem::get().GetEntityByAddr(_currentTarget->addr);
+			if (target != nullptr && 
+				GetTargetBonePosition(target, entitiesMap[_currentTarget->type]->lock, buf) && IsPointInCircle(buf)) {
+				return true;
+			}
+			else {
+				_currentTarget = std::nullopt;
+			}
+		}
+
+		if (!GetClosestEntityPos(buf)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	bool GetClosestEntityPos(ImVec2& buf) {
 
 		using PriorityPair = std::pair<int, EntityType>;
 
@@ -77,41 +97,45 @@ private:
 		}
 
 		ImVec2 closestPos{ 0, 0 };
-		ImVec2 buf;
+		ImVec2 currentPos;
+		TargetInfo tempInfo;
 
 		while (!queue.empty()) {
-			EntityType tempType = queue.top().second;
+			EntityType entType = queue.top().second;
 			queue.pop();
 			
-			for (const auto& ent : EntitySystem::get()[tempType]) {
-				if (EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(ent->GetWorldPosition(BoneType::Origin)) > _settings.maxDistance) {
+			for (const auto& ent : EntitySystem::get()[entType]) {
+				if (!GetTargetBonePosition(ent, entitiesMap[entType]->lock, currentPos)) {
 					continue;
 				}
 
-				if (!IsTargetInFront(CameraManager::get().viewDirection, EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin), ent->GetWorldPosition(BoneType::Origin))) {
-					continue;
+				if (IsPointCloserToCenter(closestPos, currentPos)) {
+					closestPos = currentPos;
+					tempInfo = { entType, ent->GetAddr() };
 				}
-
-				if (!GetAimPositionIfEligible(ent, entitiesMap[tempType]->lock, buf)) {
-					continue;
-				}
-
-				closestPos = CompareAndGetClosestToCenter(closestPos, buf);
 			}
-
 			if (closestPos.x != 0 && closestPos.y != 0 && IsPointInCircle(closestPos)) {
-				return closestPos;
+				if (_settings.rememberTarget) {
+					_currentTarget = tempInfo;
+				}
+				buf = closestPos;
+				return true;
 			}
 		}
 
-		return { 0,0 };
+		return false;
 	}
 
-	bool GetAimPositionIfEligible(std::shared_ptr<Entity> ent, BoneType bone, ImVec2& buf) {
+	bool GetTargetBonePosition(std::shared_ptr<Entity> ent, BoneType bone, ImVec2& buf) {
 		if (!ent->IsEligible()) {
 			return false;
 		}
-
+		if (EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(ent->GetWorldPosition(BoneType::Origin)) > _settings.maxDistance) {
+			return false;
+		}
+		if (!IsTargetInFront(CameraManager::get().viewDirection, EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin), ent->GetWorldPosition(BoneType::Origin))) {
+			return false;
+		}
 		if (!ent->GetScreenPosition(bone, buf)) {
 			return false;
 		}
@@ -119,14 +143,14 @@ private:
 		return true;
 	}
 
-	ImVec2 CompareAndGetClosestToCenter(const ImVec2& point1, const ImVec2& point2) {
+	bool IsPointCloserToCenter(const ImVec2& point1, const ImVec2& point2) {
 		float dist1Squared = (point1.x - screenCenter.x) * (point1.x - screenCenter.x) +
 			(point1.y - screenCenter.y) * (point1.y - screenCenter.y);
 
 		float dist2Squared = (point2.x - screenCenter.x) * (point2.x - screenCenter.x) +
 			(point2.y - screenCenter.y) * (point2.y - screenCenter.y);
 
-		return (dist1Squared < dist2Squared) ? point1 : point2;
+		return dist1Squared > dist2Squared;
 	}
 
 	bool IsPointInCircle(const ImVec2& point) {
@@ -143,8 +167,8 @@ private:
 
 		float dotProduct = 
 			directionToEnemy.x * viewDirection.x +
-			directionToEnemy.y * viewDirection.y +
-			directionToEnemy.z * viewDirection.z;
+			directionToEnemy.y * viewDirection.y -
+			directionToEnemy.z * viewDirection.z;  // ??????
 
 		if (dotProduct < 0) {
 			return false;
@@ -174,7 +198,12 @@ private:
 private:
 	std::unordered_map<EntityType, const Config::AimSettings::PosGetterSettings*> entitiesMap;
 	const Config::AimSettings& _settings;
-
+	
+	struct TargetInfo {
+		EntityType type;
+		uintptr_t addr;
+	};
+	std::optional<TargetInfo> _currentTarget;
 
 	float fovRatio = 1;
 	ImVec2 screenCenter = ImVec2(CameraManager::get().resolution.width / 2, CameraManager::get().resolution.height / 2);
