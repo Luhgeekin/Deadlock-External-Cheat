@@ -51,6 +51,20 @@ public:
 		return nullptr;
 	}
 
+	std::shared_ptr<Entity> GetEntityByAddr(uintptr_t addr, EntityType entType) {
+		if (_list.find(entType) == _list.end()) {
+			return nullptr;
+		}
+
+		for (const auto& ent : _list[entType]) {
+			if (*ent == addr) {
+				return ent;
+			}
+		}
+
+		return nullptr;
+	}
+
 private:
 
 	void UpdateSelfAddress() override {
@@ -209,7 +223,7 @@ private:
 	std::unordered_map<EntityType, std::vector<std::shared_ptr<Entity>>> _list;
 
 
-	std::chrono::milliseconds _interval = std::chrono::milliseconds(10000);
+	std::chrono::milliseconds _interval = std::chrono::milliseconds(1000);
 	std::chrono::steady_clock::time_point _lastCacheUpdate = std::chrono::steady_clock::now() - _interval;
 
 public:

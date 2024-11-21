@@ -35,11 +35,10 @@ public:
 		}
 
 		currentHealth = Lazy<int>([this] { return Deadlock.Read<int>(_addr + C_BaseEntity::m_iHealth); });
-		maxHealth = Lazy<int>([this] { return Deadlock.Read<int>(_addr + C_BaseEntity::m_iMaxHealth); });
+		maxHealth = Lazy<int>([this] {	return max(Deadlock.Read<int>(_addr + C_BaseEntity::m_iMaxHealth), *currentHealth); }); 
 		teamNum = Lazy<BYTE>([this] { return Deadlock.Read<BYTE>(_addr + C_BaseEntity::m_iTeamNum); });
 		isDead = Lazy<bool>([this] { return *currentHealth <= 0; });
 		isDormant = Lazy<bool>([this, gameScene] { return Deadlock.Read<bool>(gameScene + CGameSceneNode::m_bDormant); });
-
 		return true;
 	}
 

@@ -162,10 +162,14 @@ private:
             if (ImGui::BeginTabItem("global")) {
                 ImGui::Checkbox("Enable", &settings.isOn);
                 aimKey.Button("Aim key");
-                ImGui::Checkbox("Remember target", &settings.rememberTarget);
                 ImGui::SliderFloat("max distance", &settings.maxDistance, 500.f, 10000.0f);
                 ImGui::SliderFloat("fov", &settings.fov, 50.f, 500.f);
                 ImGui::SliderFloat("smoothing", &settings.smoothing, 0.1f, 1.0f);
+
+                ImGui::Checkbox("priority", &settings.isPriorityEnabled);
+                ImGui::Checkbox("Remember target", &settings.rememberTarget);
+                ImGui::Checkbox("Prediction", &settings.prediction);
+
                 ImGui::Checkbox("Fov circle", &settings.fovCircle);
                 ImGui::ColorEdit4("FOV Color", (float*)&settings.fovColor);
                 ImGui::Checkbox("Line to target", &settings.lineToTarget);
@@ -272,7 +276,8 @@ private:
     }
 
     void RenderOrbDrawerMenu(Config::ESPSettings::OrbRendererSettings& settings) {
-        ImGui::ColorEdit4("Orb circle color", (float*)&settings.pointColor);
+        ImGui::ColorEdit4("Orb circle color", (float*)&settings.circleColor);
+        ImGui::ColorEdit4("Orb circle filling", (float*)&settings.fillingColor);
     }
     //################################################################################################################
 

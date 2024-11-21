@@ -9,6 +9,8 @@ struct Vec4 {
 	float w;
 };
 
+
+
 struct Vec3 {
 
 	Vec3() : x(0), y(0), z(0) {}
@@ -18,10 +20,21 @@ struct Vec3 {
 		return { x - other.x, y - other.y, z - other.z };
 	}
 
+	Vec3 operator+(const Vec3& other) const {
+		return { x + other.x, y + other.y, z + other.z };
+	}
 
-	float x;
-	float y;
-	float z;
+	Vec3 operator*(float scalar) const {
+		return { x * scalar, y * scalar, z * scalar };
+	}
+
+	Vec3 operator/(float scalar) const {
+		return { x / scalar, y / scalar, z / scalar };
+	}
+
+	float length() const {
+		return std::sqrt(x * x + y * y + z * z);
+	}
 
 	float DistanceTo(const Vec3& other) const {
 		return sqrt(
@@ -35,7 +48,17 @@ struct Vec3 {
 		return x == 0 && y == 0 && z == 0;
 	}
 
+	static float dot(const Vec3& v1, const Vec3& v2) {
+		return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+	}
+
+	float x;
+	float y;
+	float z;
+
+
 };
+
 
 
 struct Matrix4x4 {

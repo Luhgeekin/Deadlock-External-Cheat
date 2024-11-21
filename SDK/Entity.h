@@ -17,7 +17,14 @@ public:
 			return false;
 		}
 		for (int i = 0; i <= BoneType::Body; i++) {
-			screenPositions[i] = Lazy<ImVec2>([this, i] {return CameraManager::get().WorldToScreen(*positions[i]); });
+			screenPositions[i] = Lazy<ImVec2>([this, i] {
+				ImVec2 buf;
+				if (!CameraManager::get().WorldToScreen(*positions[i], buf)) {
+					return ImVec2(-1,-1);
+				}
+				return buf; 
+				}
+			);
 		}
 		return true;
 	}
@@ -45,6 +52,7 @@ public:
 		buf = ScreenPos;
 		return true;
 	}
+
 
 protected:
 	virtual bool _Update() = 0;

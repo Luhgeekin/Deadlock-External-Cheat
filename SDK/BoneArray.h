@@ -46,15 +46,14 @@ std::vector<int> GetBoneIndeces(std::string modelName) {
 	{"models/npc/medic/medic_model.vmdl", {26}},
 	{"models/npc/trooper/trooper_melee.vmdl", {15}},
 	{"models/npc/trooper/trooper_humanoid.vmdl", {8} },
-	{"models/animgraph2/trooper_medic/trooper_medic.vmdl", {26}},
-	{"models/animgraph2/trooper_melee/trooper_melee.vmdl", {15}},
-	{"models/animgraph2/trooper_humanoid/trooper_humanoid_ag2.vmdl", {8} }
+	{"models/animgraph2/trooper_medic/trooper_medic.vmdl", {7}},
+	{"models/animgraph2/trooper_melee/trooper_melee.vmdl", {8}},
+	{"models/animgraph2/trooper_humanoid/trooper_humanoid_ag2.vmdl", {38} }
 	};
 
 	if (modelToBoneIndexMap.find(modelName) == modelToBoneIndexMap.end()) {
 		return {};
 	}
-
 
 	return modelToBoneIndexMap[modelName];
 }

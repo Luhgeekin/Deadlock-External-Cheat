@@ -20,7 +20,5 @@ private:
 protected:
 	virtual void _Tick() = 0;
 
-	virtual std::vector<EntityType> GetRelevantEntities() = 0;
-	
 	const Config::CheatSettings& _settings;
 };

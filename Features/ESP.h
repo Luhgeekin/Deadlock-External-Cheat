@@ -74,7 +74,7 @@ public:
     ESPRendererBase(const bool& isOn) : isOn(isOn) {}
 
     void Render(std::shared_ptr<Entity> entity) {
-        if (!isOn) {
+        if (!isOn || !entity->IsEligible()) {
             return;
         }
         
@@ -90,13 +90,13 @@ public:
     const bool& isOn;
 };
 
-template<EntityType T>
+
+
+template<typename T>
 class ESPRenderer;
 
-
-
 template<>
-class ESPRenderer<EntityType::TrooperEnt> : public ESPRendererBase{
+class ESPRenderer<BaseEntity> : public ESPRendererBase{
 
 public:
     ESPRenderer(const Config::ESPSettings::EntityBaseRendererSettings& settings) : 
@@ -104,41 +104,51 @@ public:
         _settings(settings)
     {};
 
+    void ProcessEntity(std::shared_ptr<Entity> ent) override {
+        ImVec2 bottom;
+        ImVec2 top;
+        if (!GetRect(ent, 60, bottom, top)) {
+            return;
+        }
+
+        Draw(ent, bottom, top);
+    }
+
 protected:
-    void ProcessEntity(std::shared_ptr<Entity> player) override {
-        auto enemy = std::dynamic_pointer_cast<BaseEntity>(player);
+    bool GetRect(std::shared_ptr<Entity> ent, float height, ImVec2& bottom, ImVec2& top) {
+        if (!ent->GetScreenPosition(BoneType::Origin, bottom)) {
+            return false;
+        }
 
-        headScreenPos = { 0, 0 };
-        originScreenPos = { 0, 0 };
+        if (!CameraManager::get().WorldToScreen(ent->GetWorldPosition(BoneType::Origin) + Vec3(0, 0, height), top)) {
+            return false;
+        }
 
-        if (enemy == nullptr || !enemy->IsEligible()) {
+        return true;
+    }
+
+    void Draw(std::shared_ptr<Entity> ent, ImVec2 bottom, ImVec2 top) {
+        auto enemy = std::dynamic_pointer_cast<BaseEntity>(ent);
+        if (!enemy) {
             return;
         }
 
-        if (!enemy->GetScreenPosition(BoneType::Origin, originScreenPos)) {
-            return;
-        }
-
-        if (!enemy->GetScreenPosition(BoneType::Head, headScreenPos)) {
-            return;
-        }
-
-        headScreenPos.y /= 1.03;
-        int height = headScreenPos.y - originScreenPos.y;
+        top.y /= 1.03;
+        int height = top.y - bottom.y;
         int width = height / 2.f;
 
         if (_settings.doesDrawBoxes) {
             boxes[_settings.boxType](
-                ImVec2(headScreenPos.x - width / 2, headScreenPos.y),
-                ImVec2(originScreenPos.x + width / 2, originScreenPos.y),
+                ImVec2(top.x - width / 2, top.y),
+                ImVec2(bottom.x + width / 2, bottom.y),
                 ImGui::ColorConvertFloat4ToU32(_settings.boxColor),
                 ImGui::ColorConvertFloat4ToU32(_settings.boxFillingColor)
-            );
+                );
         }
 
         if (_settings.doesDrawHealthBar) {
             DrawingUtils::DrawHealthBar(
-                ImVec2(originScreenPos.x + width / 2 - 7, originScreenPos.y),
+                ImVec2(bottom.x + width / 2 - 7, bottom.y),
                 height,
                 *enemy->maxHealth,
                 *enemy->currentHealth
@@ -147,34 +157,70 @@ protected:
 
         if (_settings.doesDrawLines) {
             DrawingUtils::DrawLine(
-                { (float)CameraManager::get().resolution.width / 2, (float)CameraManager::get().resolution.height},
-                originScreenPos,
+                { (float)CameraManager::get().resolution.width / 2, (float)CameraManager::get().resolution.height },
+                bottom,
                 ImGui::ColorConvertFloat4ToU32(_settings.lineToEnemyColor)
             );
         }
 
         if (_settings.doesDrawDistance) {
             DrawingUtils::DrawDistance(
-                { originScreenPos.x, originScreenPos.y + 10 }, 
-                EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(player->GetWorldPosition(BoneType::Origin)),
+                { bottom.x, bottom.y + 10 },
+                EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(ent->GetWorldPosition(BoneType::Origin)),
                 ImGui::ColorConvertFloat4ToU32(_settings.distanceTextColor)
             );
         }
     }
 
-protected:
-    ImVec2 originScreenPos = { 0, 0 };
-    ImVec2 headScreenPos = { 0, 0 };
-
+private:
     typedef void (*DrawBoxFn)(const ImVec2&, const ImVec2&, ImU32, ImU32);
     DrawBoxFn boxes[2]{ DrawingUtils::DrawBox, DrawingUtils::DrawCornerBox };
-
 
     const Config::ESPSettings::EntityBaseRendererSettings& _settings;
 };
 
+
+
 template<>
-class ESPRenderer<EntityType::OrbEnt> : public ESPRendererBase {
+class ESPRenderer<Player> : public ESPRenderer<BaseEntity>
+{
+public:
+    ESPRenderer(const Config::ESPSettings::PlayerRendererSettings& settings) :
+        ESPRenderer<BaseEntity>(settings),
+        _settings(settings) 
+    {}
+
+    void ProcessEntity(std::shared_ptr<Entity> ent) override {
+        ImVec2 bottom;
+        ImVec2 top;
+        if (!GetRect(ent, 85, bottom, top)) {
+            return;
+        }
+
+        Draw(ent, bottom, top);
+
+        auto enemy = std::dynamic_pointer_cast<Player>(ent);
+        if (enemy == nullptr) {
+            return;
+        }
+
+        if (_settings.doesDrawName) {
+            DrawingUtils::DrawCentralizedText(
+                { top.x, top.y - 40 }, 
+                enemy->playerName, 
+                ImGui::ColorConvertFloat4ToU32(_settings.nameColor)
+            );
+        }
+    }
+
+private:
+    const Config::ESPSettings::PlayerRendererSettings& _settings;
+};
+
+
+
+template<>
+class ESPRenderer<XpOrb> : public ESPRendererBase {
 public:
 
     ESPRenderer(const Config::ESPSettings::OrbRendererSettings& settings) : 
@@ -182,70 +228,35 @@ public:
         _settings(settings) 
     {};
 
-private:
+
     void ProcessEntity(std::shared_ptr<Entity> entity) override {
-        auto xpOrb = std::dynamic_pointer_cast<XpOrb>(entity);
-
-        if (xpOrb == nullptr || !xpOrb->IsEligible()) {
-            return;
-        }
-
         float fixedDistance = 500.f;
-        float distance = EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(xpOrb->GetWorldPosition(BoneType::Origin));
+        float distance = EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin).DistanceTo(entity->GetWorldPosition(BoneType::Origin));
         float distanceRatio =  fixedDistance / distance;
 
         ImVec2 orbScreenPosition;
-
-
-        if (!xpOrb->GetScreenPosition(BoneType::Origin, orbScreenPosition)) {
+        if (!entity->GetScreenPosition(BoneType::Origin, orbScreenPosition)) {
             return;
         }
 
+        int circleSize = 15 * distanceRatio * STANDART_GAME_FOV / CameraManager::get().fov;
         ImGui::GetBackgroundDrawList()->AddCircle(
-            orbScreenPosition, 
-            15 * distanceRatio * STANDART_GAME_FOV/CameraManager::get().fov,
-            ImGui::ColorConvertFloat4ToU32(_settings.pointColor), 
+            orbScreenPosition,
+            circleSize,
+            ImGui::ColorConvertFloat4ToU32(_settings.circleColor), 
             0, 
-            0);
+            0
+        );
+
+        ImGui::GetBackgroundDrawList()->AddCircleFilled(
+            orbScreenPosition,
+            circleSize,
+            ImGui::ColorConvertFloat4ToU32(_settings.fillingColor)
+        );
     }
-
-    const Config::ESPSettings::OrbRendererSettings& _settings;
-};
-
-template<>
-class ESPRenderer<EntityType::PlayerEnt> : public ESPRenderer<EntityType::TrooperEnt>
-{
-public:
-    ESPRenderer(const Config::ESPSettings::PlayerRendererSettings& settings) :
-        ESPRenderer<EntityType::TrooperEnt>(settings),
-        _settings(settings) 
-    {}
-
 
 private:
-    void ProcessEntity(std::shared_ptr<Entity> entity) override {
-        ESPRenderer<EntityType::TrooperEnt>::ProcessEntity(entity);
-
-        auto enemy = std::dynamic_pointer_cast<Player>(entity);
-        if (enemy == nullptr) {
-            return;
-        }
-
-        if (originScreenPos.x == 0 || originScreenPos.y == 0 ||
-            headScreenPos.x == 0 || headScreenPos.y == 0) {
-            return;
-        }
-
-        if (_settings.doesDrawName) {
-            DrawingUtils::DrawCentralizedText(
-                { headScreenPos.x, headScreenPos.y - 20 }, 
-                enemy->playerName, 
-                ImGui::ColorConvertFloat4ToU32(_settings.nameColor));
-
-        }
-    }
-
-    const Config::ESPSettings::PlayerRendererSettings& _settings;
+    const Config::ESPSettings::OrbRendererSettings& _settings;
 };
 
 
@@ -255,21 +266,9 @@ public:
     ESP(const Config::ESPSettings& settings) :
         Cheat(settings)
     {
-        ESPRenderers[EntityType::PlayerEnt] = std::make_shared<ESPRenderer<EntityType::PlayerEnt>>(settings.players);
-        ESPRenderers[EntityType::OrbEnt] = std::make_shared<ESPRenderer<EntityType::OrbEnt>>(settings.orbs);
-        ESPRenderers[EntityType::TrooperEnt] = std::make_shared<ESPRenderer<EntityType::TrooperEnt>>(settings.troopers);
-    }
-
-    std::vector<EntityType> GetRelevantEntities() override {
-        std::vector<EntityType> relevantEntities;
-
-        for (const auto& drawer : ESPRenderers) {
-            if (drawer.second->isOn) {
-                relevantEntities.push_back(drawer.first);
-            }
-        }
-
-        return relevantEntities;
+        ESPRenderers[EntityType::PlayerEnt] = std::make_shared<ESPRenderer<Player>>(settings.players);
+        ESPRenderers[EntityType::OrbEnt] = std::make_shared<ESPRenderer<XpOrb>>(settings.orbs);
+        ESPRenderers[EntityType::TrooperEnt] = std::make_shared<ESPRenderer<BaseEntity>>(settings.troopers);
     }
 
 private:
@@ -286,7 +285,5 @@ private:
     }
 
 private:
-
     std::unordered_map<EntityType, std::shared_ptr<ESPRendererBase>> ESPRenderers;
-
 };

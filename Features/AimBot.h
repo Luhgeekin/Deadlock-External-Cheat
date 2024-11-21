@@ -19,13 +19,9 @@ public:
 		entitiesMap[EntityType::OrbEnt] = &settings.orbs;
 	}
 
-	std::vector<EntityType> GetRelevantEntities() override {
-		return {};
-	}
-
-
 private:
 	void _Tick() override {
+		isActive = GetAsyncKeyState(_settings.key);
 		float curGameFov = CameraManager::get().fov;
 
 		if (curGameFov != 0) {
@@ -43,21 +39,42 @@ private:
 		}
 
 		ImVec2 aimPosition;
-		if (!GetAimPosition(aimPosition)) {
+		ImVec2 predictedPos = { 0, 0 };
+		if (!GetAimPosition(aimPosition, predictedPos)) {
 			return;
 		}
 
+		bool isPredicted = predictedPos.x != 0 && predictedPos.y != 0;
+		ImVec4 lineToTargetColor = isActive ? ImVec4(255, 0, 0, 255) : _settings.fovColor;
+
 		if (_settings.lineToTarget) {
-			ImGui::GetBackgroundDrawList()->AddLine(
-				screenCenter,
-				aimPosition,
-				ImGui::ColorConvertFloat4ToU32(_settings.fovColor),
-				1
-			);
+			if (!isPredicted) {
+				ImGui::GetBackgroundDrawList()->AddLine(
+					screenCenter,
+					aimPosition,
+					ImGui::ColorConvertFloat4ToU32(lineToTargetColor),
+					1
+				);
+			}
+			else {
+				ImGui::GetBackgroundDrawList()->AddLine(
+					aimPosition,
+					predictedPos,
+					ImGui::ColorConvertFloat4ToU32(_settings.fovColor),
+					1
+				);
+				ImGui::GetBackgroundDrawList()->AddLine(
+					screenCenter,
+					predictedPos,
+					ImGui::ColorConvertFloat4ToU32(lineToTargetColor),
+					1
+				);
+				aimPosition = predictedPos;
+			}
 		}
 
-		if (!(GetKeyState(_settings.key) & 0x8000)) {
-			_currentTarget = std::nullopt;
+		if (!isActive) {
+			_currentTarget.reset();
 			return;
 		}
 
@@ -65,11 +82,27 @@ private:
 		MoveMouse(deltaMove.x, deltaMove.y);
 	}
 
-	bool GetAimPosition(ImVec2& buf) {
-		if (_currentTarget != std::nullopt) {
-			std::shared_ptr<Entity> target = EntitySystem::get().GetEntityByAddr(_currentTarget->addr);
-			if (target != nullptr && 
-				GetTargetBonePosition(target, entitiesMap[_currentTarget->type]->lock, buf) && IsPointInCircle(buf)) {
+	bool GetAimPosition(ImVec2& buf, ImVec2& predict) {
+		if (_currentTarget) {
+			std::shared_ptr<Entity> target = EntitySystem::get().GetEntityByAddr(_currentTarget->addr, _currentTarget->type);
+
+			BoneType bone = entitiesMap[_currentTarget->type]->lock;
+			if (target != nullptr && GetTargetBonePosition(target, bone, buf)) {
+
+				if (_settings.prediction) {
+					UpdateTargetVelocity(target, *_currentTarget);
+					Vec3 predictedPos = PredictWorldPosition(
+						target->GetWorldPosition(BoneType::Origin) + Vec3(0, 0, _currentTarget->height),
+						_currentTarget->velocity,
+						EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin)
+					);
+
+					ImVec2 predictedScreenPos;
+					if (CameraManager::get().WorldToScreen(predictedPos, predictedScreenPos)) {
+						predict = predictedScreenPos;
+					}
+				}
+
 				return true;
 			}
 			else {
@@ -77,19 +110,44 @@ private:
 			}
 		}
 
-		if (!GetClosestEntityPos(buf)) {
+		TargetInfo inf;
+		if (!GetClosestEntityPos(buf, inf)) {
 			return false;
+		}
+
+		if (isActive && _settings.rememberTarget) {
+			_currentTarget = inf;
 		}
 
 		return true;
 	}
+	
+	struct TargetInfo;
+	void UpdateTargetVelocity(std::shared_ptr<Entity> ent, TargetInfo& info){
+		if (!ent) {
+			return;
+		}
+		
+		constexpr static float fInterval = 0.1f;
+		auto now = std::chrono::steady_clock::now();
 
-	bool GetClosestEntityPos(ImVec2& buf) {
+		std::chrono::duration<double> elapsed = now - info.lastTime;
+		
+		if (elapsed > std::chrono::milliseconds(1000) * fInterval) {
+			Vec3 currentPos = ent->GetWorldPosition(BoneType::Origin);
+			Vec3 difference = currentPos - info.worldPosition;
 
+			info.velocity = difference / elapsed.count();
+			info.worldPosition = currentPos;
+			info.lastTime = now;
+		}
+
+	}
+
+	bool GetClosestEntityPos(ImVec2& buf, TargetInfo& tempInfo) {
 		using PriorityPair = std::pair<int, EntityType>;
 
 		std::priority_queue<PriorityPair, std::vector<PriorityPair>, std::greater<PriorityPair>> queue;
-
 		for (const auto& elem : entitiesMap) {
 			if (elem.second->isOn) {
 				queue.push({ elem.second->priority, elem.first });
@@ -98,8 +156,7 @@ private:
 
 		ImVec2 closestPos{ 0, 0 };
 		ImVec2 currentPos;
-		TargetInfo tempInfo;
-
+		
 		while (!queue.empty()) {
 			EntityType entType = queue.top().second;
 			queue.pop();
@@ -111,13 +168,27 @@ private:
 
 				if (IsPointCloserToCenter(closestPos, currentPos)) {
 					closestPos = currentPos;
-					tempInfo = { entType, ent->GetAddr() };
+
+					Vec3 worldPosOrigin = ent->GetWorldPosition(BoneType::Origin);
+					Vec3 worldPos = ent->GetWorldPosition(entitiesMap[entType]->lock);
+					float height = std::abs(worldPos.z - worldPosOrigin.z);
+					tempInfo = {
+						entType,
+						ent->GetAddr(),
+						ent->GetWorldPosition(BoneType::Origin),
+						{0, 0, 0},
+						std::chrono::steady_clock::now(),
+						height
+					};
+					
 				}
 			}
-			if (closestPos.x != 0 && closestPos.y != 0 && IsPointInCircle(closestPos)) {
-				if (_settings.rememberTarget) {
-					_currentTarget = tempInfo;
-				}
+
+			if (closestPos.x == 0 || closestPos.y == 0 || !IsPointInCircle(closestPos)) {
+				continue;
+			}
+
+			if (_settings.isPriorityEnabled || queue.empty()) {
 				buf = closestPos;
 				return true;
 			}
@@ -158,7 +229,6 @@ private:
 		float deltaY = point.y - screenCenter.y;
 
 		float distanceSquared = pow(deltaX, 2) + pow(deltaY, 2);
-
 		return distanceSquared <= pow(_settings.fov * fovRatio, 2);
 	}
 
@@ -168,7 +238,7 @@ private:
 		float dotProduct = 
 			directionToEnemy.x * viewDirection.x +
 			directionToEnemy.y * viewDirection.y -
-			directionToEnemy.z * viewDirection.z;  // ??????
+			directionToEnemy.z * viewDirection.z;
 
 		if (dotProduct < 0) {
 			return false;
@@ -177,34 +247,58 @@ private:
 		return true;
 	}
 
+	Vec3 PredictWorldPosition(const Vec3& targetPosition, const Vec3& targetVelocity, const Vec3& localPlayerPosition, float bulletSpeed = 35000.f) {
+		float distance = localPlayerPosition.DistanceTo(targetPosition);
+		float time = distance / bulletSpeed;
+
+		Vec3 velocityTime = targetVelocity * time;
+
+		return targetPosition + velocityTime;
+	}
+
 	ImVec2 CalculateMouseMove(const ImVec2& targetPos) {
 		ImVec2 delta;
-		delta.x = (targetPos.x - screenCenter.x) * _settings.smoothing / fovRatio;
-		delta.y = (targetPos.y - screenCenter.y) * _settings.smoothing / fovRatio;
+		delta.x = (targetPos.x - screenCenter.x);
+		delta.y = (targetPos.y - screenCenter.y);
+
+		ImVec2 smoothed = { delta.x * _settings.smoothing, delta.y * _settings.smoothing };
+		if (abs(smoothed.x) >= 1) {
+			delta.x = smoothed.x;
+		}
+		if (abs(smoothed.y) >= 1) {
+			delta.y = smoothed.y;
+		}
+
 		return delta;
 	}
 
-	void MoveMouse(int deltaX, int deltaY) {
+	void MoveMouse(LONG deltaX, LONG deltaY) {
 		INPUT input = { 0 };
 		input.type = INPUT_MOUSE;
-		input.mi.dx = static_cast<LONG>(deltaX);
-		input.mi.dy = static_cast<LONG>(deltaY);
+		input.mi.dx = deltaX;
+		input.mi.dy = deltaY;
 		input.mi.dwFlags = MOUSEEVENTF_MOVE;
 
 		SendInput(1, &input, sizeof(INPUT));
 	}
 
-
 private:
-	std::unordered_map<EntityType, const Config::AimSettings::PosGetterSettings*> entitiesMap;
 	const Config::AimSettings& _settings;
+	std::unordered_map<EntityType, const Config::AimSettings::PosGetterSettings*> entitiesMap;
 	
 	struct TargetInfo {
 		EntityType type;
 		uintptr_t addr;
+
+		Vec3 worldPosition;
+		Vec3 velocity;
+		std::chrono::steady_clock::time_point lastTime;
+
+		float height;
 	};
-	std::optional<TargetInfo> _currentTarget;
 
 	float fovRatio = 1;
+	std::optional<TargetInfo> _currentTarget;
 	ImVec2 screenCenter = ImVec2(CameraManager::get().resolution.width / 2, CameraManager::get().resolution.height / 2);
+	bool isActive = false;
 };

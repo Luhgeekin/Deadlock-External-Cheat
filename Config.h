@@ -18,9 +18,13 @@ struct Config {
 		float smoothing = 0.25;
 		float fov = 100;
 
+		bool isPriorityEnabled = true;
+		bool rememberTarget = true;
+		bool prediction = true;
+
 		bool fovCircle = true;
 		bool lineToTarget = true;
-		bool rememberTarget = true;
+
 
 		ImVec4 fovColor = ImVec4(1.0, 1.0, 1.0, 1.0);
 
@@ -46,9 +50,10 @@ struct Config {
 		struct OrbRendererSettings {
 			bool isOn;
 
-			ImVec4 pointColor;
+			ImVec4 circleColor;
+			ImVec4 fillingColor;
 
-		}orbs{ true, ImVec4(1.0, 0, 0, 1.0) };
+		}orbs{ true, ImVec4(1.0, 1.0, 0, 1.0), ImVec4(1.0, 1.0, 0, 0.4)};
 
 		struct EntityBaseRendererSettings {
 			bool isOn;

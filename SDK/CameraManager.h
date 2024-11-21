@@ -44,11 +44,12 @@ public:
 		return true;
 	}
 
-	ImVec2 WorldToScreen(const Vec3& world) {
-		ImVec2 buf{ -1, -1 };
-		viewMatrix.WorldToScreen(resolution.width, resolution.height, world, buf);
+	bool WorldToScreen(const Vec3& world, ImVec2& buf) {
+		if (!viewMatrix.WorldToScreen(resolution.width, resolution.height, world, buf)) {
+			return false;
+		}
 
-		return buf;
+		return true;
 	}
 
 private:
