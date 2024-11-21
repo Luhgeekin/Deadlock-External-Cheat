@@ -94,7 +94,8 @@ private:
 					Vec3 predictedPos = PredictWorldPosition(
 						target->GetWorldPosition(BoneType::Origin) + Vec3(0, 0, _currentTarget->height),
 						_currentTarget->velocity,
-						EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin)
+						EntitySystem::get().localPlayer->GetWorldPosition(BoneType::Origin),
+						_settings.bulletSpeed
 					);
 
 					ImVec2 predictedScreenPos;
@@ -247,7 +248,7 @@ private:
 		return true;
 	}
 
-	Vec3 PredictWorldPosition(const Vec3& targetPosition, const Vec3& targetVelocity, const Vec3& localPlayerPosition, float bulletSpeed = 35000.f) {
+	Vec3 PredictWorldPosition(const Vec3& targetPosition, const Vec3& targetVelocity, const Vec3& localPlayerPosition, float bulletSpeed) {
 		float distance = localPlayerPosition.DistanceTo(targetPosition);
 		float time = distance / bulletSpeed;
 

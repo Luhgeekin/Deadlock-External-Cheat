@@ -166,9 +166,10 @@ private:
                 ImGui::SliderFloat("fov", &settings.fov, 50.f, 500.f);
                 ImGui::SliderFloat("smoothing", &settings.smoothing, 0.1f, 1.0f);
 
-                ImGui::Checkbox("priority", &settings.isPriorityEnabled);
+                ImGui::Checkbox("Priority", &settings.isPriorityEnabled);
                 ImGui::Checkbox("Remember target", &settings.rememberTarget);
                 ImGui::Checkbox("Prediction", &settings.prediction);
+                ImGui::SliderFloat("Bullet speed", &settings.bulletSpeed, 1000.f, 50000.f);
 
                 ImGui::Checkbox("Fov circle", &settings.fovCircle);
                 ImGui::ColorEdit4("FOV Color", (float*)&settings.fovColor);

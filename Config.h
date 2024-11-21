@@ -21,13 +21,12 @@ struct Config {
 		bool isPriorityEnabled = true;
 		bool rememberTarget = true;
 		bool prediction = true;
+		float bulletSpeed = 15000.f;
 
 		bool fovCircle = true;
 		bool lineToTarget = true;
 
-
 		ImVec4 fovColor = ImVec4(1.0, 1.0, 1.0, 1.0);
-
 
 		struct PosGetterSettings {
 			bool isOn;
@@ -38,8 +37,6 @@ struct Config {
 		PosGetterSettings players{ true, 2, BoneType::Head };
 		PosGetterSettings troopers{ true, 3, BoneType::Head };
 		PosGetterSettings orbs{ true, 1, BoneType::Origin };
-
-
 	};
 
 	AimSettings aimSettigns;
@@ -95,8 +92,6 @@ struct Config {
 			ImVec4(1, 0.2, 0.2, 1),
 			true
 		};
-
-		
 	};
 
 	ESPSettings espSettings; 

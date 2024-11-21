@@ -81,10 +81,8 @@ public:
         ProcessEntity(entity);
     }
     
-
 protected:
     virtual void ProcessEntity(std::shared_ptr<Entity> entity) = 0;
-
 
 public:
     const bool& isOn;
