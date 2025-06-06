@@ -1,4 +1,4 @@
-# Deadlock Internal Cheat (For Educational Purposes Only)
+# Deadlock External Cheat (For Educational Purposes Only)
 > ⚠️ **Warning:** This project is provided for **educational and research purposes only**. Do **not** use this cheat in online games or multiplayer environments. Misuse may result in bans or other consequences. The author are not responsible for any misuse.
 
 > 🛑 **[DEPRECATED]** This project is no longer maintained and only works with older versions of the game.
