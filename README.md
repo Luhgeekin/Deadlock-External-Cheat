@@ -1,6 +1,7 @@
 # Deadlock Internal Cheat (For Educational Purposes Only)
 > ⚠️ **Warning:** This project is provided for **educational and research purposes only**. Do **not** use this cheat in online games or multiplayer environments. Misuse may result in bans or other consequences. The author are not responsible for any misuse.
-[DEPRECATED] This project is no longer maintained and is only compatible with older versions of the game.
+
+> 🛑 **[DEPRECATED]** This project is no longer maintained and only works with older versions of the game.
 
 ![ezgif-23150699a6d2fe](https://github.com/user-attachments/assets/d36c5b5b-a507-46fe-b51a-842783564a1d)
 
@@ -69,6 +70,5 @@ Do **not** use this software in **multiplayer/online** modes. Using cheats in on
 ---
 
 ## Requirements
-- DirectX / ImGui backend (internal hook)
-- Admin privileges (if needed by game)
+- DirectX / ImGui
 - Compiled using modern C++ (17+ recommended)
